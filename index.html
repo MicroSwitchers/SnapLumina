@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Meta Tags and Title -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Light - Tabbed Interface</title>
+    <!-- Stylesheet -->
+    <style>
+        /* General Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            background: black;
+            color: white;
+            overflow: hidden;
+        }
+        /* Light Panel */
+        #light-panel {
+            flex-grow: 1;
+            width: 100%;
+            background-color: white;
+            transition: background-color 0.3s ease;
+        }
+        /* Drawer Styles */
+        .drawer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 -10px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(calc(100% - 50px));
+            transition: transform 0.3s ease;
+            z-index: 1;
+            touch-action: pan-y;
+        }
+        .drawer.open {
+            transform: translateY(0);
+        }
+        .drawer-handle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .handle-bar {
+            width: 35px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 2px;
+            transition: background-color 0.2s ease;
+        }
+        .drawer-handle:hover .handle-bar {
+            background: rgba(255, 255, 255, 0.7);
+        }
+        /* Controls Container */
+        .controls-container {
+            margin-top: 20px;
+        }
+        /* Tab Bar Styles */
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 15px;
+        }
+        .tab {
+            flex: 1;
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            padding: 10px 0;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .tab.active {
+            color: #2196F3;
+            border-bottom: 2px solid #2196F3;
+        }
+        .tab:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .tab:focus {
+            outline: 2px solid #2196F3;
+        }
+        /* Slider Container */
+        .slider-container {
+            margin: 10px 0;
+            position: relative;
+        }
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .value-display {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2196F3;
+            font-variant-numeric: tabular-nums;
+        }
+        /* Slider Styles */
+        .slider {
+            width: 100%;
+            margin: 8px 0;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+        .slider:focus {
+            outline: 2px solid #2196F3;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #2196F3;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: all 0.15s ease;
+        }
+        .slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.4);
+        }
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #2196F3;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: all 0.15s ease;
+        }
+        .slider-fill {
+            position: absolute;
+            height: 4px;
+            background: #2196F3;
+            border-radius: 2px;
+            pointer-events: none;
+            transition: width 0.1s ease;
+        }
+        /* RGB Slider Styles */
+        .rgb-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: 20px 0 10px;
+        }
+        .rgb-slider .slider::-webkit-slider-thumb {
+            width: 18px;
+            height: 18px;
+        }
+        .rgb-slider .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+        }
+        .rgb-slider.red .slider::-webkit-slider-thumb { background: #ff4444; }
+        .rgb-slider.green .slider::-webkit-slider-thumb { background: #4CAF50; }
+        .rgb-slider.blue .slider::-webkit-slider-thumb { background: #2196F3; }
+        .rgb-slider.red .slider-fill { background: #ff4444; }
+        .rgb-slider.green .slider-fill { background: #4CAF50; }
+        .rgb-slider.blue .slider-fill { background: #2196F3; }
+        /* Divider */
+        .divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 15px 0;
+        }
+        /* Fullscreen Button */
+        #fullscreen-button {
+            width: 100%;
+            padding: 10px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+        #fullscreen-button:hover {
+            background: #1976D2;
+        }
+        /* Icon Styles */
+        .icon {
+            width: 16px;
+            height: 16px;
+            fill: rgba(255, 255, 255, 0.9);
+            margin-right: 6px;
+        }
+        .label-group {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <!-- Light Panel -->
+    <div id="light-panel"></div>
+    <!-- Drawer -->
+    <div class="drawer" id="drawer">
+        <div class="drawer-handle" id="drawer-handle">
+            <div class="handle-bar"></div>
+        </div>
+        <!-- Controls Container -->
+        <div class="controls-container">
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <button class="tab active" data-target="temperature-controls">☀️ Temperature</button>
+                <button class="tab" data-target="rgb-controls">🎨 RGB</button>
+            </div>
+            <!-- Temperature Controls -->
+            <div id="temperature-controls">
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <div class="label-group">
+                            <!-- Temperature Icon -->
+                            <svg class="icon" viewBox="0 0 24 24">
+                                <path d="M6 2v11a6 6 0 1 0 12 0V2h-2v11a4 4 0 1 1-8 0V2H6z"/>
+                            </svg>
+                            <label for="temperature">Temperature</label>
+                        </div>
+                        <span class="value-display" id="temperature-value">5500K</span>
+                    </div>
+                    <div class="slider-fill" id="temperature-fill"></div>
+                    <input type="range" id="temperature" class="slider" min="2000" max="10000" value="5500" aria-label="Temperature">
+                </div>
+            </div>
+            <!-- RGB Controls -->
+            <div id="rgb-controls" style="display: none;">
+                <div class="rgb-grid">
+                    <!-- Red Slider -->
+                    <div class="slider-container rgb-slider red">
+                        <div class="slider-header">
+                            <label for="red">Red</label>
+                            <span class="value-display" id="red-value">255</span>
+                        </div>
+                        <div class="slider-fill" id="red-fill"></div>
+                        <input type="range" id="red" class="slider" min="0" max="255" value="255" aria-label="Red">
+                    </div>
+                    <!-- Green Slider -->
+                    <div class="slider-container rgb-slider green">
+                        <div class="slider-header">
+                            <label for="green">Green</label>
+                            <span class="value-display" id="green-value">255</span>
+                        </div>
+                        <div class="slider-fill" id="green-fill"></div>
+                        <input type="range" id="green" class="slider" min="0" max="255" value="255" aria-label="Green">
+                    </div>
+                    <!-- Blue Slider -->
+                    <div class="slider-container rgb-slider blue">
+                        <div class="slider-header">
+                            <label for="blue">Blue</label>
+                            <span class="value-display" id="blue-value">255</span>
+                        </div>
+                        <div class="slider-fill" id="blue-fill"></div>
+                        <input type="range" id="blue" class="slider" min="0" max="255" value="255" aria-label="Blue">
+                    </div>
+                </div>
+            </div>
+            <!-- Divider -->
+            <div class="divider"></div>
+            <!-- Brightness Controls -->
+            <div class="slider-container">
+                <div class="slider-header">
+                    <div class="label-group">
+                        <!-- Brightness Icon -->
+                        <svg class="icon" viewBox="0 0 24 24">
+                            <path d="M12 6V4m0 16v-2m8-6h-2M6 12H4m12.07-5.07l-1.41 1.41M7.34 16.66l-1.41 1.41M16.66 16.66l1.41-1.41M7.34 7.34l1.41-1.41"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        <label for="brightness">Brightness</label>
+                    </div>
+                    <span class="value-display" id="brightness-value">100%</span>
+                </div>
+                <div class="slider-fill" id="brightness-fill"></div>
+                <input type="range" id="brightness" class="slider" min="5" max="100" value="100" aria-label="Brightness">
+            </div>
+            <!-- Fullscreen Button -->
+            <button id="fullscreen-button">Enter Full Screen</button>
+        </div>
+    </div>
+    <!-- JavaScript -->
+    <script>
+        // Element References
+        const lightPanel = document.getElementById('light-panel');
+        const drawer = document.getElementById('drawer');
+        const drawerHandle = document.getElementById('drawer-handle');
+        const brightnessSlider = document.getElementById('brightness');
+        const temperatureSlider = document.getElementById('temperature');
+        const redSlider = document.getElementById('red');
+        const greenSlider = document.getElementById('green');
+        const blueSlider = document.getElementById('blue');
+        const brightnessValue = document.getElementById('brightness-value');
+        const temperatureValue = document.getElementById('temperature-value');
+        const redValue = document.getElementById('red-value');
+        const greenValue = document.getElementById('green-value');
+        const blueValue = document.getElementById('blue-value');
+        const brightnessFill = document.getElementById('brightness-fill');
+        const temperatureFill = document.getElementById('temperature-fill');
+        const redFill = document.getElementById('red-fill');
+        const greenFill = document.getElementById('green-fill');
+        const blueFill = document.getElementById('blue-fill');
+        const temperatureControls = document.getElementById('temperature-controls');
+        const rgbControls = document.getElementById('rgb-controls');
+        const fullscreenButton = document.getElementById('fullscreen-button');
+
+        // Tab Switching
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = {
+            'temperature-controls': temperatureControls,
+            'rgb-controls': rgbControls
+        };
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove 'active' class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                // Add 'active' class to clicked tab
+                tab.classList.add('active');
+                // Hide all tab contents
+                Object.values(tabContents).forEach(content => content.style.display = 'none');
+                // Show the selected tab content
+                const target = tab.getAttribute('data-target');
+                tabContents[target].style.display = 'block';
+                // Update the mode
+                updateLight();
+            });
+        });
+
+        // Get Current Mode
+        function getCurrentMode() {
+            const activeTab = document.querySelector('.tab.active');
+            return activeTab.getAttribute('data-target') === 'rgb-controls' ? 'rgb' : 'temperature';
+        }
+
+        // Kelvin to RGB Conversion
+        function kelvinToRGB(temperature) {
+            temperature = temperature / 100;
+            let r, g, b;
+            if (temperature <= 66) {
+                r = 255;
+                g = temperature;
+                g = 99.4708025861 * Math.log(g) - 161.1195681661;
+                b = temperature <= 19 ? 0 : 138.5177312231 * Math.log(temperature - 10) - 305.0447927307;
+            } else {
+                r = 329.698727446 * Math.pow(temperature - 60, -0.1332047592);
+                g = 288.1221695283 * Math.pow(temperature - 60, -0.0755148492);
+                b = 255;
+            }
+            return {
+                r: Math.min(255, Math.max(0, r)),
+                g: Math.min(255, Math.max(0, g)),
+                b: Math.min(255, Math.max(0, b))
+            };
+        }
+
+        // Update Slider Fill
+        function updateSliderFill(slider, fill) {
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            const val = parseFloat(slider.value);
+            const percentage = ((val - min) / (max - min)) * 100;
+            fill.style.width = percentage + '%';
+        }
+
+        // Update Light Panel
+        function updateLight() {
+            const brightness = brightnessSlider.value / 100;
+            let r, g, b;
+            if (getCurrentMode() === 'rgb') {
+                r = Math.round(redSlider.value * brightness);
+                g = Math.round(greenSlider.value * brightness);
+                b = Math.round(blueSlider.value * brightness);
+            } else {
+                const temp = temperatureSlider.value;
+                const rgb = kelvinToRGB(temp);
+                r = Math.round(rgb.r * brightness);
+                g = Math.round(rgb.g * brightness);
+                b = Math.round(rgb.b * brightness);
+            }
+            lightPanel.style.backgroundColor = `rgb(${r},${g},${b})`;
+            brightnessValue.textContent = `${brightnessSlider.value}%`;
+            temperatureValue.textContent = `${temperatureSlider.value}K`;
+            redValue.textContent = redSlider.value;
+            greenValue.textContent = greenSlider.value;
+            blueValue.textContent = blueSlider.value;
+            updateSliderFill(brightnessSlider, brightnessFill);
+            updateSliderFill(temperatureSlider, temperatureFill);
+            updateSliderFill(redSlider, redFill);
+            updateSliderFill(greenSlider, greenFill);
+            updateSliderFill(blueSlider, blueFill);
+        }
+
+        // Drawer Toggle
+        drawerHandle.addEventListener('click', () => {
+            drawer.classList.toggle('open');
+        });
+
+        // Drawer Swipe Interaction
+        let startY;
+        let currentY;
+        let drawerOpen = false;
+        drawer.addEventListener('touchstart', (e) => {
+            startY = e.touches[0].clientY;
+        });
+        drawer.addEventListener('touchmove', (e) => {
+            currentY = e.touches[0].clientY;
+            const diffY = currentY - startY;
+            if ((!drawerOpen && diffY < 0) || (drawerOpen && diffY > 0)) {
+                e.preventDefault();
+                drawer.style.transform = `translateY(${diffY}px)`;
+            }
+        });
+        drawer.addEventListener('touchend', () => {
+            const diffY = currentY - startY;
+            if (Math.abs(diffY) > 50) {
+                drawer.classList.toggle('open');
+                drawerOpen = !drawerOpen;
+            }
+            drawer.style.transform = '';
+        });
+
+        // Event Listeners
+        brightnessSlider.addEventListener('input', updateLight);
+        temperatureSlider.addEventListener('input', updateLight);
+        redSlider.addEventListener('input', updateLight);
+        greenSlider.addEventListener('input', updateLight);
+        blueSlider.addEventListener('input', updateLight);
+
+        // Fullscreen Button
+        fullscreenButton.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    alert(`Error enabling full-screen mode: ${err.message} (${err.name})`);
+                });
+                fullscreenButton.textContent = 'Exit Full Screen';
+            } else {
+                document.exitFullscreen();
+                fullscreenButton.textContent = 'Enter Full Screen';
+            }
+        });
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                fullscreenButton.textContent = 'Enter Full Screen';
+            } else {
+                fullscreenButton.textContent = 'Exit Full Screen';
+            }
+        });
+
+        // Initial Update
+        updateLight();
+    </script>
+</body>
+</html>
